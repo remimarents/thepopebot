@@ -6,12 +6,12 @@ Two agent singletons, both using `createReactAgent` from `@langchain/langgraph/p
 
 **Agent Chat** — singleton via `getAgentChat()`:
 - System prompt: `config/agent-chat/SYSTEM.md` (rendered fresh each invocation via `render_md()`)
-- Tools: `create_agent_job`, `update_popebot`
+- Tools: `agent_job`, `coding_agent`
 - Call `resetAgentChats()` to clear both singletons (required if hot-reloading)
 
 **Code Chat** — singleton via `getCodeChat()`:
 - System prompt: `config/code-chat/SYSTEM.md` (rendered fresh each invocation)
-- Tools: `start_headless_coding_agent` (reads repo/branch/workspace from `runtime.configurable`)
+- Tools: `coding_agent` (reads repo/branch/workspace from `runtime.configurable`)
 
 ## Adding a New Tool
 
