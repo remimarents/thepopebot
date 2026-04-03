@@ -11,6 +11,9 @@ fi
 # Build Codex args
 SESSION_FILE="/home/coding-agent/.codex-ttyd-sessions/${PORT}"
 CODEX_ARGS="codex"
+if [ -n "$LLM_MODEL" ]; then
+    CODEX_ARGS="$CODEX_ARGS --model $LLM_MODEL"
+fi
 
 if [ -f "$SESSION_FILE" ]; then
     SESSION_ID=$(cat "$SESSION_FILE")

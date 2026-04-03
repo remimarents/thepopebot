@@ -11,6 +11,9 @@ fi
 # Build Kimi args
 SESSION_FILE="/home/coding-agent/.kimi-ttyd-sessions/${PORT}"
 KIMI_ARGS="kimi"
+if [ -n "$LLM_MODEL" ]; then
+    KIMI_ARGS="$KIMI_ARGS --model $LLM_MODEL"
+fi
 
 if [ -f "$SESSION_FILE" ]; then
     SESSION_ID=$(cat "$SESSION_FILE")

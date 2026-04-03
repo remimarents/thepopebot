@@ -11,6 +11,9 @@ fi
 # Build Claude args
 SESSION_FILE="/home/coding-agent/.claude-ttyd-sessions/${PORT}"
 CLAUDE_ARGS="claude --dangerously-skip-permissions"
+if [ -n "$LLM_MODEL" ]; then
+    CLAUDE_ARGS="$CLAUDE_ARGS --model $LLM_MODEL"
+fi
 
 if [ -f "$SESSION_FILE" ]; then
     SESSION_ID=$(cat "$SESSION_FILE")

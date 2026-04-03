@@ -118,7 +118,14 @@ export function Chat({ chatId, initialMessages = [], workspace = null, chatMode 
     if (isMount || isFinished) {
       fetch(`/code/workspace-diff/${workspaceState.id}`)
         .then(r => r.json())
-        .then(r => { if (r.success) setDiffStats(r); })
+        .then(r => {
+          if (r.success) {
+            setDiffStats(r);
+            if (r.currentBranch) {
+              setWorkspaceState(prev => prev && r.currentBranch !== prev.featureBranch ? { ...prev, featureBranch: r.currentBranch } : prev);
+            }
+          }
+        })
         .catch(() => {});
     }
     prevStatus.current = status;
@@ -244,7 +251,13 @@ export function Chat({ chatId, initialMessages = [], workspace = null, chatMode 
     try {
       const r = await fetch(`/code/workspace-diff/${workspaceState.id}`);
       const data = await r.json();
-      if (data.success) { setDiffStats(data); return data; }
+      if (data.success) {
+        setDiffStats(data);
+        if (data.currentBranch) {
+          setWorkspaceState(prev => prev && data.currentBranch !== prev.featureBranch ? { ...prev, featureBranch: data.currentBranch } : prev);
+        }
+        return data;
+      }
     } catch {}
     return null;
   }, [workspaceState?.id]);

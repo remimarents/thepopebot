@@ -9,7 +9,11 @@ if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
 fi
 
 # Build Pi args
-PI_ARGS="pi --session-dir /home/coding-agent/.pi-ttyd-sessions/${PORT} -c"
+PI_ARGS="pi"
+if [ -n "$LLM_MODEL" ]; then
+    PI_ARGS="$PI_ARGS --model $LLM_MODEL"
+fi
+PI_ARGS="$PI_ARGS --session-dir /home/coding-agent/.pi-ttyd-sessions/${PORT} -c"
 
 # Start tmux session with Pi, then attach
 tmux -u new-session -d -s "$SESSION_NAME" -e PORT="${PORT}" -c /home/coding-agent/workspace $PI_ARGS

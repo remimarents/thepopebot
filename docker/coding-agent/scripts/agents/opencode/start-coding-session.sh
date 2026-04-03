@@ -11,6 +11,9 @@ fi
 # Build OpenCode args
 SESSION_FILE="/home/coding-agent/.opencode-ttyd-sessions/${PORT}"
 OPENCODE_ARGS="opencode"
+if [ -n "$LLM_MODEL" ]; then
+    OPENCODE_ARGS="$OPENCODE_ARGS --model $LLM_MODEL"
+fi
 
 if [ -f "$SESSION_FILE" ]; then
     SESSION_ID=$(cat "$SESSION_FILE")

@@ -341,6 +341,9 @@ function WorkspaceCommandButton({ workspaceId, diffStats, onDiffStatsRefresh, on
           onClick={onShowDiff}
           className="text-xs leading-4 px-2.5 h-[28px] flex items-center gap-1.5 font-medium border border-border rounded-md whitespace-nowrap hover:bg-accent transition-colors cursor-pointer"
         >
+          {diffStats?.currentBranch && (
+            <span className="text-muted-foreground truncate max-w-[120px]" title={diffStats.currentBranch}>{diffStats.currentBranch}</span>
+          )}
           <span className="text-green-500">+{diffStats?.insertions ?? 0}</span>
           <span className="text-destructive">-{diffStats?.deletions ?? 0}</span>
         </button>

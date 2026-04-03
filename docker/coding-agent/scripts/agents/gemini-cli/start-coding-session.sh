@@ -11,6 +11,9 @@ fi
 # Build Gemini args
 SESSION_FILE="/home/coding-agent/.gemini-ttyd-sessions/${PORT}"
 GEMINI_ARGS="gemini --approval-mode yolo"
+if [ -n "$LLM_MODEL" ]; then
+    GEMINI_ARGS="$GEMINI_ARGS --model $LLM_MODEL"
+fi
 
 if [ -f "$SESSION_FILE" ]; then
     SESSION_ID=$(cat "$SESSION_FILE")
