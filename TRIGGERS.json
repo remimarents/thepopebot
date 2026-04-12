@@ -1,0 +1,13 @@
+[
+  {
+    "name": "GitHub Push to Main",
+    "enabled": true,
+    "watch_path": "/github/webhook",
+    "actions": [
+      {
+        "type": "log",
+        "message": "GitHub push event received on {{body.ref}}"
+      }
+    ]
+  }
+]

@@ -1,0 +1,84 @@
+services:
+  traefik:
+    image: traefik:v3
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.file.directory=/traefik-config/
+      - --entrypoints.web.address=:80
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik-config:/traefik-config:ro
+    restart: unless-stopped
+
+  event-handler:
+    container_name: thepopebot-event-handler
+
+    build:
+      context: .
+      dockerfile: docker/event-handler/Dockerfile
+
+    image: thepopebot-event-handler-local
+
+    env_file:
+      - .env
+
+    volumes:
+      - ./agent-job:/project/agent-job
+      - ./event-handler:/project/event-handler
+      - ./skills:/project/skills
+      - ./data:/project/data
+      - ./logs:/project/logs
+      - ./traefik-config:/project/traefik-config
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    environment:
+      TRAEFIK_CONFIG_DIR: /traefik-config
+
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.event-handler.rule=Host(`${APP_HOSTNAME}`)
+      - traefik.http.routers.event-handler.entrypoints=web
+      - traefik.http.services.event-handler.loadbalancer.server.port=80
+
+    stop_grace_period: 120s
+
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 80"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+    restart: unless-stopped
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    command: --config /litellm/main.yaml --port 4000
+
+    volumes:
+      - ./event-handler/litellm:/litellm:ro
+
+    restart: unless-stopped
+
+  runner:
+    image: myoung34/github-runner:latest
+
+    env_file:
+      - .env
+
+    environment:
+      REPO_URL: https://github.com/${GH_OWNER}/${GH_REPO}
+      ACCESS_TOKEN: ${GH_TOKEN}
+      RUNNER_SCOPE: repo
+      LABELS: self-hosted
+      EPHEMERAL: "1"
+      DISABLE_AUTO_UPDATE: "true"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/project
+
+    restart: unless-stopped

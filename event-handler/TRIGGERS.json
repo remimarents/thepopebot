@@ -1,0 +1,7 @@
+{
+  "github-push": {
+    "event": "push",
+    "repo": "remimarents/thepopebot",
+    "branch": "main"
+  }
+}

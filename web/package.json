@@ -1,0 +1,26 @@
+{
+  "name": "thepopebot-web",
+  "version": "1.2.75-beta.22",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node server.js",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.0.3",
+    "react": "^19.0.0-rc-66f71784-20241202",
+    "react-dom": "^19.0.0-rc-66f71784-20241202",
+    "dotenv": "^16.4.5",
+    "thepopebot": "file:.."
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8",
+    "eslint-config-next": "^15.0.3"
+  }
+}

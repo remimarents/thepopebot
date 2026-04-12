@@ -1,50 +1,36 @@
-# ── Stage 1: builder ──────────────────────────────────────────────
-FROM node:22-bookworm-slim AS builder
+FROM node:20-bookworm-slim
+RUN apt-get update && apt-get install -y python3 make g++
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 make g++ && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    procps \
+    curl \
+    git \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-COPY package.json package-lock.json* ./
-# Rename package to avoid npm treating "thepopebot" as a self-install
-RUN TPB_VERSION=$(node -p "require('./package.json').version") && \
-    echo "{\"private\":true}" > package.json && \
-    npm install --no-save "thepopebot@${TPB_VERSION}" tailwindcss @tailwindcss/postcss
+WORKDIR /project
 
-# ── Stage 2: Next.js build ───────────────────────────────────────
-FROM node:22-bookworm-slim AS nextjs
-WORKDIR /app
-COPY --from=builder /app/node_modules ./node_modules
-# Use a minimal package.json to avoid self-referencing exports
-# (the repo package.json has name "thepopebot", which makes Node resolve
-# imports like 'thepopebot/config' to ./config/ instead of node_modules)
-RUN echo '{"private":true}' > package.json
-COPY web/ ./
-RUN ./node_modules/.bin/next build
+# Copy entire project first (needed for thepopebot imports)
+COPY . .
 
-# ── Stage 3: runtime ─────────────────────────────────────────────
-FROM node:22-bookworm-slim
+# Install root dependencies so thepopebot package is available
+RUN npm install
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl git ca-certificates && \
-    install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      -o /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
-    chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-      > /etc/apt/sources.list.d/github-cli.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends gh && \
-    rm -rf /var/lib/apt/lists/*
-
+# Install PM2 globally
 RUN npm install -g pm2
 
-WORKDIR /app
-COPY --from=builder /app/node_modules ./node_modules
-RUN echo '{"private":true}' > package.json
-COPY --from=nextjs /app/.next ./.next
-COPY web/server.js web/next.config.mjs web/instrumentation.js web/middleware.js web/postcss.config.mjs ./
+# Install web app dependencies and build Next.js
+WORKDIR /project/web
+RUN npm install && npm run build
 
-EXPOSE 80
-CMD ["pm2-runtime", "--kill-timeout", "120000", "server.js"]
+# Save .next to a backup location in case the volume mount hides it
+RUN cp -r .next /tmp/next-backup
+
+# Return to project root
+WORKDIR /project
+
+# Start script that restores .next if missing due to volume mount and changes to web dir
+RUN echo '#!/bin/bash\nset -e\nif [ ! -d "/project/web/.next" ] && [ -d "/tmp/next-backup" ]; then\n  echo "Restoring .next from backup..."\n  mkdir -p /project/web\n  cp -r /tmp/next-backup /project/web/.next\nfi\necho "Starting server from /project/web..."\ncd /project/web\nexec pm2-runtime server.js' > /start.sh && chmod +x /start.sh
+
+# Start the Next.js app via PM2
+CMD ["/start.sh"]

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { createServer } from 'http';
 import next from 'next';
-import { attachCodeProxy } from 'thepopebot/code/ws-proxy';
+import { attachCodeProxy } from '../lib/code/ws-proxy.js';
 
 const app = next({ dev: false });
 const handle = app.getRequestHandler();

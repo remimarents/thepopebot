@@ -1,0 +1,8 @@
+# Managed by thepopebot — do not edit manually.
+# LiteLLM proxy config. Docs: https://docs.litellm.ai/docs/
+
+model_list:
+  - model_name: "ollama/*"
+    litellm_params:
+      model: "openai/*"
+      api_base: "http://172.23.239.191:11434/v1"

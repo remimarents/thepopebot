@@ -240,20 +240,55 @@ async function processChannelMessage(adapter, normalized) {
 
 async function handleGithubWebhook(request) {
   const GH_WEBHOOK_SECRET = getConfig('GH_WEBHOOK_SECRET');
+  const secretToken = request.headers.get('x-github-webhook-secret-token');
+  const event = request.headers.get('x-github-event');
+  
+  console.log(`\n[GITHUB-WEBHOOK] Received ${event} event`);
+  console.log(`[GITHUB-WEBHOOK] Secret configured: ${!!GH_WEBHOOK_SECRET}`);
+  console.log(`[GITHUB-WEBHOOK] Token present: ${!!secretToken}`);
 
   // Validate webhook secret (timing-safe, required)
-  if (!GH_WEBHOOK_SECRET || !safeCompare(request.headers.get('x-github-webhook-secret-token'), GH_WEBHOOK_SECRET)) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!GH_WEBHOOK_SECRET) {
+    console.error('[GITHUB-WEBHOOK] GH_WEBHOOK_SECRET not configured');
+    return Response.json({ error: 'Webhook secret not configured' }, { status: 500 });
   }
 
-  const payload = await request.json();
-  const agentJobId = payload.agent_job_id || payload.job_id || extractAgentJobId(payload.branch);
-  if (!agentJobId) return Response.json({ ok: true, skipped: true, reason: 'not an agent job' });
+  if (!secretToken) {
+    console.error('[GITHUB-WEBHOOK] Missing x-github-webhook-secret-token header');
+    return Response.json({ error: 'Unauthorized: missing token header' }, { status: 401 });
+  }
+
+  if (!safeCompare(secretToken, GH_WEBHOOK_SECRET)) {
+    console.error('[GITHUB-WEBHOOK] Invalid webhook secret token');
+    return Response.json({ error: 'Unauthorized: invalid token' }, { status: 401 });
+  }
+
+  console.log('[GITHUB-WEBHOOK] Secret validation passed');
+
+  let payload;
+  try {
+    payload = await request.json();
+    console.log(`[GITHUB-WEBHOOK] Payload keys: ${Object.keys(payload).join(', ')}`);
+  } catch (err) {
+    console.error(`[GITHUB-WEBHOOK] Failed to parse JSON: ${err.message}`);
+    return Response.json({ error: 'Invalid JSON payload' }, { status: 400 });
+  }
+
+  const agentJobId = payload.agent_job_id || payload.job_id || extractAgentJobId(payload.ref || payload.branch);
+  console.log(`[GITHUB-WEBHOOK] Agent job ID extracted: ${agentJobId || 'none'}`);
+  
+  if (!agentJobId) {
+    console.log(`[GITHUB-WEBHOOK] Skipping: not an agent job (no agent_job_id, job_id, or agent-job branch)`);
+    return Response.json({ ok: true, skipped: true, reason: 'not an agent job' });
+  }
 
   try {
+    console.log(`[GITHUB-WEBHOOK] Processing agent job: ${agentJobId.slice(0, 8)}`);
+    
     // Fetch log from repo via API (no longer sent in payload)
     let log = payload.log || '';
-    if (!log) {
+    if (!log && payload.commit_sha) {
+      console.log('[GITHUB-WEBHOOK] Fetching log from GitHub API...');
       log = await fetchAgentJobLog(agentJobId, payload.commit_sha);
     }
 
@@ -271,12 +306,13 @@ async function handleGithubWebhook(request) {
     const message = await summarizeAgentJob(results);
     await createNotification(message, payload);
 
-    console.log(`Notification saved for agent-job ${agentJobId.slice(0, 8)}`);
+    console.log(`[GITHUB-WEBHOOK] ✓ Notification saved for agent-job ${agentJobId.slice(0, 8)}`);
 
     return Response.json({ ok: true, notified: true });
   } catch (err) {
-    console.error('Failed to process GitHub webhook:', err);
-    return Response.json({ error: 'Failed to process webhook' }, { status: 500 });
+    console.error(`[GITHUB-WEBHOOK] ✗ Failed to process webhook: ${err.message}`);
+    console.error(`[GITHUB-WEBHOOK] Stack: ${err.stack}`);
+    return Response.json({ error: 'Failed to process webhook', details: err.message }, { status: 500 });
   }
 }
 
@@ -371,37 +407,50 @@ async function POST(request) {
   const url = new URL(request.url);
   const routePath = url.pathname.replace(/^\/api/, '');
 
-  // Auth check
-  const authError = checkAuth(routePath, request);
-  if (authError) return authError;
+  console.log(`\n[API] POST ${routePath}`);
 
-  // Fire triggers (non-blocking)
   try {
-    const fireTriggers = getFireTriggers();
-    // Clone request to read body for triggers without consuming it for the handler
-    const clonedRequest = request.clone();
-    const body = await clonedRequest.json().catch(() => ({}));
-    const query = Object.fromEntries(url.searchParams);
-    const headers = Object.fromEntries(request.headers);
-    fireTriggers(routePath, body, query, headers);
-  } catch (e) {
-    // Trigger errors are non-fatal
-  }
+    // Auth check
+    const authError = checkAuth(routePath, request);
+    if (authError) return authError;
 
-  // Cluster role webhooks
-  const clusterMatch = routePath.match(/^\/cluster\/([a-f0-9-]+)\/role\/([a-f0-9-]+)\/webhook$/);
-  if (clusterMatch) {
-    const { handleClusterWebhook } = await import('../lib/cluster/runtime.js');
-    return handleClusterWebhook(clusterMatch[1], clusterMatch[2], request);
-  }
+    // Fire triggers (non-blocking)
+    try {
+      const fireTriggers = getFireTriggers();
+      // Clone request to read body for triggers without consuming it for the handler
+      const clonedRequest = request.clone();
+      const body = await clonedRequest.json().catch(() => ({}));
+      const query = Object.fromEntries(url.searchParams);
+      const headers = Object.fromEntries(request.headers);
+      fireTriggers(routePath, body, query, headers);
+    } catch (e) {
+      // Trigger errors are non-fatal
+      console.warn(`[API] Trigger firing error: ${e.message}`);
+    }
 
-  // Route to handler
-  switch (routePath) {
-    case '/create-agent-job':     return handleCreateAgentJob(request);
-    case '/telegram/webhook':   return handleTelegramWebhook(request);
-    case '/telegram/register':  return handleTelegramRegister(request);
-    case '/github/webhook':     return handleGithubWebhook(request);
-    default:                    return Response.json({ error: 'Not found' }, { status: 404 });
+    // Cluster role webhooks
+    const clusterMatch = routePath.match(/^\/cluster\/([a-f0-9-]+)\/role\/([a-f0-9-]+)\/webhook$/);
+    if (clusterMatch) {
+      const { handleClusterWebhook } = await import('../lib/cluster/runtime.js');
+      return handleClusterWebhook(clusterMatch[1], clusterMatch[2], request);
+    }
+
+    // Route to handler
+    switch (routePath) {
+      case '/create-agent-job':     return await handleCreateAgentJob(request);
+      case '/telegram/webhook':   return await handleTelegramWebhook(request);
+      case '/telegram/register':  return await handleTelegramRegister(request);
+      case '/github/webhook':     return await handleGithubWebhook(request);
+      default:                    return Response.json({ error: 'Not found' }, { status: 404 });
+    }
+  } catch (err) {
+    console.error(`[API] ✗ Unhandled error in POST ${routePath}: ${err.message}`);
+    console.error(`[API] Stack: ${err.stack}`);
+    return Response.json({
+      error: 'Internal server error',
+      details: err.message,
+      path: routePath
+    }, { status: 500 });
   }
 }
 

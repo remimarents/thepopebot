@@ -1,0 +1,14 @@
+[
+  {
+    "name": "github-push",
+    "enabled": true,
+    "event": "push",
+    "repo": "remimarents/thepopebot",
+    "branch": "main",
+    "actions": [
+      {
+        "type": "coding-agent"
+      }
+    ]
+  }
+]
