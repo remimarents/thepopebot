@@ -244,8 +244,6 @@ async function handleGithubWebhook(request) {
   const event = request.headers.get('x-github-event');
   
   console.log(`\n[GITHUB-WEBHOOK] Received ${event} event`);
-  console.log(`[GITHUB-WEBHOOK] Secret configured: ${!!GH_WEBHOOK_SECRET}`);
-  console.log(`[GITHUB-WEBHOOK] Token present: ${!!secretToken}`);
 
   // Validate webhook secret (timing-safe, required)
   if (!GH_WEBHOOK_SECRET) {
