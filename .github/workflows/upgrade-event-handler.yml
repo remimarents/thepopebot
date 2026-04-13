@@ -46,16 +46,16 @@ jobs:
             WORK_DIR=$(mktemp -d)
             trap "rm -rf \"$WORK_DIR\"" EXIT
             git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${OWNER_REPO}.git" "$WORK_DIR"
-            cd "$WORK_DIR"
+            cd "$WORK_DIR/web"
 
-            git config user.name "thepopebot"
-            git config user.email "thepopebot@users.noreply.github.com"
+            git config --global user.name "thepopebot"
+            git config --global user.email "thepopebot@users.noreply.github.com"
 
-            npm install --omit=dev
+            npm install
             OLD_VERSION=$(node -p "require(\"./node_modules/thepopebot/package.json\").version")
 
             TARGET="${TARGET_VERSION:-}"
-            if [ -n "$TARGET" ] && echo "$TARGET" | grep -q "-"; then
+            if [ -n "$TARGET" ]; then
               npm install "thepopebot@${TARGET}" --prefer-online
             else
               npm update thepopebot --prefer-online
@@ -64,7 +64,8 @@ jobs:
             NEW_VERSION=$(node -p "require(\"./node_modules/thepopebot/package.json\").version")
 
             if [ "$OLD_VERSION" != "$NEW_VERSION" ]; then
-              git add -A
+              cd "$WORK_DIR"
+              git add -A web/package.json web/package-lock.json package-lock.json package.json
               git commit -m "chore: upgrade thepopebot to $NEW_VERSION"
               git push origin HEAD:main
             else
