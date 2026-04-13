@@ -1,8 +1,9 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @import "streamdown/styles.css";
 @import "diff2html/bundles/css/diff2html.min.css";
-@source "../node_modules/thepopebot/lib/**/*.{js,jsx}";
-@source "../node_modules/streamdown/dist/**/*.js";
 
 :root {
   --background: #ffffff;
