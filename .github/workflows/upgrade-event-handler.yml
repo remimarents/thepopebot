@@ -1,0 +1,36 @@
+name: Upgrade Event Handler
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Target version (optional)'
+        required: false
+        default: ''
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for updates
+        run: |
+          echo "Checking for thepopebot updates..."
+          npm check-updates @thepopebot || true
+
+      - name: Update dependencies
+        run: |
+          npm update
+          cd web && npm update
+
+      - name: Commit and push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git diff --cached --exit-code || (git commit -m "chore: upgrade dependencies" && git push)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
