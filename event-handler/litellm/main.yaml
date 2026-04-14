@@ -1,12 +1,8 @@
-# Managed by thepopebot - local Ollama setup.
+# Managed by thepopebot — do not edit manually.
 # LiteLLM proxy config. Docs: https://docs.litellm.ai/docs/
 
 model_list:
-  - model_name: "llama3.2:3b"
+  - model_name: "ollama/*"
     litellm_params:
-      model: "ollama/llama3.2:3b"
-      api_base: "http://172.17.0.1:11434"
-  - model_name: "ollama/llama3.2:3b"
-    litellm_params:
-      model: "ollama/llama3.2:3b"
-      api_base: "http://172.17.0.1:11434"
+      model: "openai/*"
+      api_base: "http://172.17.0.1:11434/v1"

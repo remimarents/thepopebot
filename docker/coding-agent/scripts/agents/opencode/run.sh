@@ -5,6 +5,11 @@
 OPENCODE_ARGS=(run --format json)
 
 if [ -n "$LLM_MODEL" ]; then
+    # OpenCode expects provider/model (e.g. openai/llama3.2:3b).
+    # If only a model name is provided, assume OpenAI-compatible provider.
+    if [[ "$LLM_MODEL" != */* ]]; then
+        LLM_MODEL="openai/${LLM_MODEL}"
+    fi
     OPENCODE_ARGS+=(--model "$LLM_MODEL")
 fi
 
